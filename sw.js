@@ -32,6 +32,18 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+const NETWORK_TIMEOUT_MS = 500;
+
+async function fetchWithTimeout(request, timeoutMs) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(request, { signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET") return;
@@ -43,7 +55,7 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       (async () => {
         try {
-          const networkResponse = await fetch(request);
+          const networkResponse = await fetchWithTimeout(request, NETWORK_TIMEOUT_MS);
           const cache = await caches.open(CACHE_NAME);
           cache.put(request, networkResponse.clone());
           return networkResponse;
